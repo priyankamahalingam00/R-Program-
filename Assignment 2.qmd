@@ -1,0 +1,229 @@
+---
+title: "GDP Analysis Report"
+format: html
+editor: visual
+---
+
+# Introduction
+
+This report analyzes GDP data from multiple countries. It examines trends, visualizations, and makes predictions.
+
+### **Load Required Libraries**
+
+```{r}
+# Load required libraries
+library(ggplot2)
+library(prophet)
+library(reshape2)
+library(viridis)
+```
+
+### **Load & Preview Data**
+
+```{r}
+# GDP dataset file location
+data <- read.csv("D:/User-Files/Priyanka Mahalingam/Documents/Sem -2/R Program/GDP data.csv")
+
+
+# Show data structure
+str(data)
+
+# Disable scientific notation
+options(scipen = 999)  
+
+# Count missing values per column
+colSums(is.na(data))  
+```
+
+**Descriptive Analysis**
+
+Find the latest year from the data set and Identify the heighest and lowest GDP values country of latest year.
+
+```{r}
+
+# Find the latest year in the dataset
+latest_year <- max(data$Year)
+
+# Extract GDP data for the latest year 
+latest_data <- data[data$Year == latest_year, -1]
+
+# Find the country with the highest GDP
+max_country <- names(latest_data)[which.max(latest_data)]
+paste("Highest GDP in", latest_year, ":", max_country)
+
+# Find the country with the lowest GDP
+min_country <- names(latest_data)[which.min(latest_data)]
+print(paste("Lowest GDP in", latest_year, ":", min_country))
+
+```
+
+**Find the top 5 countries with the highest GDP in latest year**
+
+```{r}
+# The top 5 countries with the highest GDP
+top_countries <- names(sort(unlist(latest_data), decreasing = TRUE))[1:5]
+print(paste("Top 5 countries with highest GDP in", latest_year, ":", paste(top_countries, collapse=", ")))
+
+# Create a dataframe of top 5 countries with their GDP
+top_5_gdp <- data.frame(Country = top_countries,
+                        GDP = as.numeric(unlist(latest_data[top_countries])))
+print(top_5_gdp)
+```
+
+### **Data Visualization**
+
+```{r}
+# Visualize the Top 5 GDP Countries as a Bar Chart
+ggplot(top_5_gdp, aes(x = reorder(Country, -GDP), y = GDP, fill = Country)) +
+  geom_bar(stat = "identity", width = 0.6, show.legend = FALSE) +  
+  geom_text(aes(label = scales::comma(GDP)), vjust = -0.4, size = 4) +  
+  labs(title = paste("Top 5 GDP Countries in", latest_year),
+       x = "Country", y = "GDP (in Trillions)") + scale_y_continuous(labels = scales::comma) + 
+  theme_minimal()
+
+```
+
+### **GDP growth of Germany Over Time using point graph**
+
+```{r}
+ggplot(data, aes(x = Year, y = Germany)) + geom_line(color = "blue", size = 1) + geom_smooth(method = "loess", color = "red", linetype = "dashed", se = FALSE) + labs(title = "GDP Growth of Germany Over Time",x = "Year",y = "GDP") + scale_x_continuous(breaks = seq(min(data$Year), max(data$Year), by = 5)) + scale_y_continuous(labels = scales::comma) + theme_minimal()
+```
+
+### **Comparison of  GDP of France, Germany, and UK in line chart**
+
+```{r}
+ggplot(data, aes(x=Year)) + geom_line(aes(y=France, color="France")) + geom_line(aes(y=Germany, color="Germany")) + geom_line(aes(y=United.Kingdom, color="UK")) + labs(title="GDP Trends of France, Germany, and UK", x="Year", y="GDP") + scale_y_continuous(labels = scales::comma) + theme_minimal()
+```
+
+### GDP Growth Analysis Over the Last 10 Years
+
+**Extracting the Last 10 Years of Data**
+
+To analyze recent GDP trends, we extract data for the last 10 years from the dataset. We determine the **latest available year** and subtract **9 years** to get the starting year.
+
+**Calculating GDP Growth Percentage**
+
+For each country, the GDP growth rate over the last 10 years is calculated using the formula:
+
+gdp_growth \<- ((gdp_latest - gdp_start) / gdp_start) \* 100
+
+This helps us understand which countries have experienced the most significant economic growth.
+
+**Identifying the Fastest-Growing Country**
+
+By identifying the **country with the highest growth rate**, we can determine which economy has expanded the most in the last decade.
+
+```{r}
+# Fletch Last 10 years data
+start_year <- latest_year - 9  
+last_10_years_data <- data[data$Year >= start_year, ]
+print(last_10_years_data)
+
+# Extract GDP data for the start and end year
+gdp_start <- last_10_years_data[last_10_years_data$Year == start_year, -1]
+gdp_latest <- last_10_years_data[last_10_years_data$Year == latest_year, -1]
+
+# Calculate percentage growth ((New GDP - Old GDP) / Old GDP * 100)
+gdp_growth <- ((gdp_latest - gdp_start) / gdp_start) * 100
+gdp_growth_numeric <- as.numeric(unlist(gdp_growth))
+names(gdp_growth_numeric) <- colnames(gdp_start)
+
+# Find the country with the highest growth rate
+fastest_growth_country <- names(which.max(gdp_growth_numeric))
+fastest_growth_rate <- max(gdp_growth_numeric)
+
+# Print result the country name with percentage
+print(paste("The country with the fastest GDP growth in the last 10 years is", 
+            fastest_growth_country, "with a growth rate of", 
+            round(fastest_growth_rate, 2), "%"))
+
+# Convert to a data frame for visualization
+gdp_growth_df <- data.frame(Country = names(gdp_growth_numeric),
+                            GrowthRate = gdp_growth_numeric)
+
+# Sort data by highest growth
+gdp_growth_df <- gdp_growth_df[order(-gdp_growth_df$GrowthRate), ]
+#gdp_growth_df <- gdp_growth_df |> arrange(desc(GrowthRate))  
+
+```
+
+### Visualizing GDP Growth Rates
+
+The top 10 fastest-growing economies are displayed using a **bar chart**, making it easier to compare growth across different nations.
+
+```{r}
+# The top 10 fastest-growing countries in bar chart
+ggplot(gdp_growth_df[1:10, ], aes(x = reorder(Country, GrowthRate), y = GrowthRate, fill = Country)) +
+  geom_bar(stat="identity", width = 0.6, show.legend = FALSE) +
+  geom_text(aes(label = paste0(round(GrowthRate, 1), "%")), 
+            hjust = 1.2, size = 4, color = "black") +  # Position inside bars
+  coord_flip() +
+  labs(title="Top 10 Countries with Fastest GDP Growth in Last 10 Years",
+       x="Country", y="GDP Growth Rate (%)") +
+  theme_minimal()
+```
+
+### Heatmap of GDP Trends
+
+**Understanding the Heatmap**
+
+A **heatmap** is a powerful visualization tool that represents GDP values across different countries over time using a color gradient. This helps in identifying patterns, trends, and anomalies in economic growth.
+
+**Insights from the Heatmap**
+
+-   Countries with **steadily increasing GDP** will have a **gradual darkening** over time.
+-   Economic **booms or recessions** will appear as **sharp changes in color intensity**.
+-   Countries with **low economic activity** will remain **lighter in color**.
+
+```{r}
+# Melt data for heatmap
+melted_data <- melt(data, id.vars = "Year")
+
+# Create Heatmap with Improved Colors
+ggplot(melted_data, aes(x = Year, y = variable, fill = value)) +
+  geom_tile(color = "black") +  # Light grid lines for clarity
+  scale_fill_viridis(option = "G", direction = -1) +  
+  labs(title = "Heatmap of GDP Trends", x = "Year", y = "Country", fill = "GDP Value") +
+  theme_minimal()
+```
+
+### Germany’s GDP Forecast (2024-2033)
+
+The **Prophet model** predicts Germany’s GDP for the next 10 years using historical trends and yearly seasonality. This helps in assessing future economic growth patterns.
+
+```{r}
+# Future data prediction of Germany’s GDP look like in the next 10 years
+gdp_data <- data.frame(ds = as.Date(paste(data$Year, "-01-01", sep="")), y = data$Germany)
+model <- prophet(gdp_data, yearly.seasonality = TRUE)
+
+# Create future data for prediction forecast till 2033
+future <- make_future_dataframe(model, periods = 10, freq = "year")
+
+# Create future data for prediction forecast till 2033 using prophate 
+future <- make_future_dataframe(model, periods = 10, freq = "year")
+
+# Predict future GDP
+forecast <- predict(model, future)
+
+# Filter only future predictions (from 2024 onward)
+future_forecast <- forecast[forecast$ds > max(gdp_data$ds), ]
+
+# Filter only future predictions (from 2024 onward)
+future_forecast <- forecast[forecast$ds > max(as.Date(gdp_data$ds)), ]
+
+```
+
+## Germany's GDP Forecast Visualization (2024-2033)
+
+The forecasted GDP values for Germany from 2024 to 2033 are visualized using a **line and point graph**. The **dashed blue lines** represent predicted GDP values, while **red points** highlight key forecasted data points. This visualization provides insights into expected economic trends.
+
+```{r}
+# Future forecast of Germany from 2024 - 2033 
+ggplot(future_forecast, aes(x = ds, y = yhat)) +
+  geom_segment(aes(x = ds, xend = ds, y = 0, yend = yhat), 
+               color = "blue", linetype = "dashed") +  
+  geom_point(color = "red", size = 4) +  
+  labs(title = "Germany GDP Forecast (2024 - 2033)",
+       x = "Year", y = "Forecasted GDP") + scale_y_continuous(labels = scales::comma) +
+  theme_minimal()
+```
